@@ -51,6 +51,14 @@ zinit light cleversontrujilu/zsh-git-flow-shortcuts
 cleversontrujilu/zsh-git-flow-shortcuts
 ```
 
+## Bônus: skill para o Claude Code
+
+Em [`bonus/skill-claude-code/`](bonus/skill-claude-code/) há uma skill que deixa o
+**Claude Code** conduzir esse mesmo fluxo (abrir/fechar feature, release e hotfix),
+escolhendo nomes de branch, versões SemVer e escrevendo commits e changelog a
+partir da análise real do diff. Ela orquestra as funções deste plugin — não
+reimplementa o git flow.
+
 ## Convenções assumidas
 
 - Repositório já inicializado com `git flow init`.
