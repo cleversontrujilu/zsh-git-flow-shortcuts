@@ -1,63 +1,12 @@
-# git-flow-shortcuts
+# Git Flow Helpers — manual das funções do `~/.zshrc`
 
 Conjunto de funções zsh para agilizar o fluxo **git flow (AVH edition)** com
 **Conventional Commits** e **Versionamento Semântico**.
 
-> Repositório: `cleversontrujilu/zsh-git-flow-shortcuts` · nome do plugin: `git-flow-shortcuts`.
+Todas ficam em `~/.zshrc`. Depois de editar o arquivo: `source ~/.zshrc`.
 
 > Podem ser usadas soltas no terminal, sem o Claude Code. A skill `git-flow` do
 > Claude apenas chama estas mesmas funções.
-
-## Requisitos
-
-- `zsh`
-- [`git-flow` (AVH edition)](https://github.com/petervanderdoes/gitflow-avh)
-
-## Instalação
-
-### Como plugin do oh-my-zsh
-
-Clone o repositório numa pasta chamada `git-flow-shortcuts` (é o nome da pasta,
-não o do repo, que o oh-my-zsh usa para achar o plugin):
-
-```sh
-git clone https://github.com/cleversontrujilu/zsh-git-flow-shortcuts \
-  "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/git-flow-shortcuts"
-```
-
-Adicione ao array `plugins` no `~/.zshrc`:
-
-```sh
-plugins=(... git-flow-shortcuts)
-```
-
-Recarregue: `source ~/.zshrc`.
-
-### Sem oh-my-zsh
-
-```sh
-git clone https://github.com/cleversontrujilu/zsh-git-flow-shortcuts ~/.git-flow-shortcuts
-echo 'source ~/.git-flow-shortcuts/git-flow-shortcuts.plugin.zsh' >> ~/.zshrc
-source ~/.zshrc
-```
-
-### Com gerenciador de plugins
-
-```sh
-# zinit
-zinit light cleversontrujilu/zsh-git-flow-shortcuts
-
-# antidote (arquivo .zsh_plugins.txt)
-cleversontrujilu/zsh-git-flow-shortcuts
-```
-
-## Bônus: skill para o Claude Code
-
-Em [`bonus/skill-claude-code/`](bonus/skill-claude-code/) há uma skill que deixa o
-**Claude Code** conduzir esse mesmo fluxo (abrir/fechar feature, release e hotfix),
-escolhendo nomes de branch, versões SemVer e escrevendo commits e changelog a
-partir da análise real do diff. Ela orquestra as funções deste plugin — não
-reimplementa o git flow.
 
 ## Convenções assumidas
 
