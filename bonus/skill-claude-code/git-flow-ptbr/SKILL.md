@@ -37,7 +37,6 @@ Convenções do projeto:
 
 1. **Escolher o nome** a partir da demanda discutida na conversa: kebab-case, curto,
    compreensão imediata, sem o prefixo `feature/` (o git flow adiciona).
-   - "tratar a falha nas imagens na Magalu" → `imagens-magalu`
    - "login social com Google" → `login-google`
    - "cálculo de frete duplicado" → `frete-duplicado`
    - Na dúvida entre dois nomes, propor um e confirmar antes de criar.
@@ -115,6 +114,7 @@ real** (`git status`, `git diff`, `git diff --staged`):
    (Alternativa: `gfrf -m "texto multi-linha"` — a função roteia por arquivo
    internamente. Se nada for passado, `gfrf` gera um changelog automático simples.)
 3. `gfrf` roda `gup`, depois `git flow release finish`:
+   
    - merges em `master` e `develop` com mensagem padrão (sem abrir editor);
    - tag anotada `major.minor.patch` (sem `v`) com o changelog;
    - remove a branch de release (local e remota).
