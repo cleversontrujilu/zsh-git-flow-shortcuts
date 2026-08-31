@@ -7,8 +7,6 @@
 Set of zsh functions to speed up the **git flow (AVH edition)** workflow with
 **Conventional Commits** and **Semantic Versioning**.
 
-They all live in `~/.zshrc`. After editing the file: `source ~/.zshrc`.
-
 > They can be used on their own in the terminal, without Claude Code. Claude's
 > `git-flow` skill just calls these same functions.
 
@@ -313,8 +311,6 @@ Mnemonic: **g**it **f**low + **s**tart/**f**inish; `r` = release, `h` = hotfix.
 
 Conjunto de funções zsh para agilizar o fluxo **git flow (AVH edition)** com
 **Conventional Commits** e **Versionamento Semântico**.
-
-Todas ficam em `~/.zshrc`. Depois de editar o arquivo: `source ~/.zshrc`.
 
 > Podem ser usadas soltas no terminal, sem o Claude Code. A skill `git-flow` do
 > Claude apenas chama estas mesmas funções.
