@@ -55,9 +55,13 @@ gup() {
 }
 
 # gcMsg: commit no padrão Conventional Commits, com pull/push automáticos.
-# Uso: gcMsg <tipo> <escopo> "Mensagem" [--no-push] [--breaking]
-#   --no-push : não faz push após o commit
-#   --breaking: sinaliza breaking change (adiciona "!" após o escopo)
+# Uso: gcMsg <tipo> <escopo> "Mensagem" [--no-push] [--no-pull] [--staged-only] [--breaking]
+#   --no-push     : não faz push após o commit
+#   --no-pull     : não faz pull após o commit (independente de --no-push)
+#   --staged-only : não roda 'git add .' — commita só o que já está staged
+#                   (se já houver algo staged ao chamar gcMsg, isso é
+#                   detectado automaticamente e o 'git add .' é pulado)
+#   --breaking    : sinaliza breaking change (adiciona "!" após o escopo)
 gcMsg() {
   # ── Tipos válidos e descrições (conventional commit) ──────────
   local -a valid_types=("feat" "fix" "docs" "style" "refactor"
@@ -79,17 +83,21 @@ gcMsg() {
 
   # ── Helpers ───────────────────────────────────────────────────
   _usage() {
-    echo "Uso: gcMsg [type] [scope] <descrição> [--breaking] [--no-push]"
+    echo "Uso: gcMsg [type] [scope] <descrição> [--breaking] [--no-push] [--no-pull] [--staged-only]"
     echo ""
     echo "  gcMsg                                   # modo interativo"
     echo "  gcMsg feat \"nova funcionalidade\""
     echo "  gcMsg fix  auth \"corrige token expirado\""
     echo "  gcMsg feat api \"migra para v2\" --breaking"
     echo "  gcMsg chore \"atualiza deps\" --no-push"
+    echo "  gcMsg fix  auth \"corrige token\" --staged-only   # só commita o que já foi staged"
     echo ""
     echo "Flags:"
-    echo "  --breaking   Marca como breaking change (adiciona !)"
-    echo "  --no-push    Faz commit + pull, mas não faz push"
+    echo "  --breaking      Marca como breaking change (adiciona !)"
+    echo "  --no-push       Faz commit + pull, mas não faz push"
+    echo "  --no-pull       Faz commit, mas não faz pull (push segue sua própria flag)"
+    echo "  --staged-only   Não roda 'git add .' — commita só o que já está staged."
+    echo "                  Detectado automaticamente se já houver algo staged."
     echo ""
     echo "Tipos: ${valid_types[*]}"
   }
@@ -160,15 +168,19 @@ gcMsg() {
     scope="$1"; shift
   fi
 
-  # ── Flags: --breaking e --no-push ─────────────────────────────
+  # ── Flags: --breaking, --no-push, --no-pull, --staged-only ────
   local breaking=""
   local no_push=false
+  local no_pull=false
+  local staged_only=false
   local -a remaining_args=()
   for arg in "$@"; do
     case "$arg" in
-      --breaking) breaking="!" ;;
-      --no-push)  no_push=true ;;
-      *)          remaining_args+=("$arg") ;;
+      --breaking)     breaking="!" ;;
+      --no-push)      no_push=true ;;
+      --no-pull)      no_pull=true ;;
+      --staged-only)  staged_only=true ;;
+      *)              remaining_args+=("$arg") ;;
     esac
   done
   local description="${remaining_args[*]}"
@@ -194,20 +206,42 @@ gcMsg() {
   echo "──────────────────────────────────────"
 
   # ── Fluxo git ─────────────────────────────────────────────────
-  # 1. Stage + commit (sempre)
-  git add . && git commit -m "$commit_msg" || {
+  # 1. Stage: pula 'git add .' se --staged-only ou se já houver algo
+  #    staged (auto-detecção), para não misturar mudanças paralelas
+  #    não relacionadas que estejam soltas na working tree.
+  local has_staged=""
+  git diff --cached --quiet --exit-code || has_staged=1
+
+  if [[ "$staged_only" == true ]]; then
+    if [[ -z "$has_staged" ]]; then
+      echo "❌ --staged-only usado, mas não há nada staged. Rode 'git add <arquivos>' antes."
+      return 1
+    fi
+    echo "📦 --staged-only: commitando apenas o que já está staged."
+  elif [[ -n "$has_staged" ]]; then
+    echo "📦 Alterações já staged detectadas — pulando 'git add .' (commit só do que já foi adicionado)."
+  else
+    git add .
+  fi
+
+  # 2. Commit
+  git commit -m "$commit_msg" || {
     echo "❌ Falha no commit. Verifique os logs acima."
     return 1
   }
 
-  # 2. Pull (sempre — sincroniza com remote antes de decidir push)
-  echo "📥 Sincronizando (pull)..."
-  git pull --no-rebase || {
-    echo "❌ Falha no pull. Resolva os conflitos manualmente."
-    return 1
-  }
+  # 3. Pull (condicional)
+  if [[ "$no_pull" == true ]]; then
+    echo "⏭️  Pull ignorado (--no-pull)."
+  else
+    echo "📥 Sincronizando (pull)..."
+    git pull --no-rebase || {
+      echo "❌ Falha no pull. Resolva os conflitos manualmente."
+      return 1
+    }
+  fi
 
-  # 3. Push (condicional)
+  # 4. Push (condicional)
   if [[ "$no_push" == true ]]; then
     echo "⏭️  Push ignorado (--no-push)."
   else
