@@ -55,7 +55,11 @@ gup() {
 }
 
 # gcMsg: commit no padrão Conventional Commits, com pull/push automáticos.
-# Uso: gcMsg <tipo> <escopo> "Mensagem" [--no-push] [--no-pull] [--staged-only] [--breaking]
+# Uso: gcMsg <tipo> <escopo> "Mensagem" [-m "corpo"]... [--no-push] [--no-pull] [--staged-only] [--breaking]
+#   -m|--message  : adiciona um parágrafo ao corpo do commit (repetível,
+#                   igual ao 'git commit -m'). A mensagem também pode ser
+#                   multi-linha: a 1ª linha vira o assunto e o restante
+#                   vira o corpo, separados por uma linha em branco.
 #   --no-push     : não faz push após o commit
 #   --no-pull     : não faz pull após o commit (independente de --no-push)
 #   --staged-only : não roda 'git add .' — commita só o que já está staged
@@ -83,7 +87,7 @@ gcMsg() {
 
   # ── Helpers ───────────────────────────────────────────────────
   _usage() {
-    echo "Uso: gcMsg [type] [scope] <descrição> [--breaking] [--no-push] [--no-pull] [--staged-only]"
+    echo "Uso: gcMsg [type] [scope] <descrição> [-m \"corpo\"]... [--breaking] [--no-push] [--no-pull] [--staged-only]"
     echo ""
     echo "  gcMsg                                   # modo interativo"
     echo "  gcMsg feat \"nova funcionalidade\""
@@ -92,7 +96,14 @@ gcMsg() {
     echo "  gcMsg chore \"atualiza deps\" --no-push"
     echo "  gcMsg fix  auth \"corrige token\" --staged-only   # só commita o que já foi staged"
     echo ""
+    echo "Mensagens multi-linha:"
+    echo "  gcMsg fix auth \"corrige token\" -m \"O refresh expirava cedo.\" -m \"Closes #42\""
+    echo "  gcMsg fix auth \"corrige token"
+    echo ""
+    echo "  O refresh expirava cedo.\"              # 1ª linha = assunto, resto = corpo"
+    echo ""
     echo "Flags:"
+    echo "  -m, --message   Adiciona um parágrafo ao corpo do commit (repetível)"
     echo "  --breaking      Marca como breaking change (adiciona !)"
     echo "  --no-push       Faz commit + pull, mas não faz push"
     echo "  --no-pull       Faz commit, mas não faz pull (push segue sua própria flag)"
@@ -162,26 +173,51 @@ gcMsg() {
     fi
   fi
 
-  # ── Escopo opcional (segundo arg sem espaços e sem --) ────────
+  # ── Escopo opcional (segundo arg sem espaços e sem flag) ──────
+  #    Só vira escopo se ainda restar algum argumento posicional para
+  #    ser a descrição — senão 'gcMsg feat "resumo" --no-push' trataria
+  #    "resumo" como escopo e ficaria sem mensagem.
   local scope=""
-  if [[ $# -gt 1 && "$1" != --* && "$1" != *" "* ]]; then
-    scope="$1"; shift
+  if [[ $# -gt 1 && "$1" != -* && "$1" != *" "* ]]; then
+    local -a _after=("${@:2}")
+    local _has_desc=false _skip_next=false _a
+    for _a in "${_after[@]}"; do
+      if [[ "$_skip_next" == true ]]; then _skip_next=false; continue; fi
+      case "$_a" in
+        -m|--message) _skip_next=true ;;
+        -*)           ;;
+        *)            _has_desc=true; break ;;
+      esac
+    done
+    [[ "$_has_desc" == true ]] && { scope="$1"; shift; }
   fi
 
-  # ── Flags: --breaking, --no-push, --no-pull, --staged-only ────
+  # ── Flags: -m/--message, --breaking, --no-push, --no-pull, --staged-only ──
   local breaking=""
   local no_push=false
   local no_pull=false
   local staged_only=false
   local -a remaining_args=()
-  for arg in "$@"; do
-    case "$arg" in
+  local -a body_parts=()
+  while (( $# > 0 )); do
+    case "$1" in
       --breaking)     breaking="!" ;;
       --no-push)      no_push=true ;;
       --no-pull)      no_pull=true ;;
       --staged-only)  staged_only=true ;;
-      *)              remaining_args+=("$arg") ;;
+      -m|--message)
+        # o valor não pode ser outra flag do gcMsg (corpo começando com
+        # "-", como item de lista, continua válido)
+        if (( $# < 2 )) || [[ "$2" == (-m|--message|--breaking|--no-push|--no-pull|--staged-only) ]]; then
+          echo "⚠️  Erro: $1 exige um texto (ex.: -m \"detalhe do commit\")."
+          return 1
+        fi
+        shift
+        body_parts+=("$1")
+        ;;
+      *)              remaining_args+=("$1") ;;
     esac
+    shift
   done
   local description="${remaining_args[*]}"
 
@@ -195,14 +231,53 @@ gcMsg() {
       echo "⚠️  Erro: descrição do commit não fornecida."
       return 1
     fi
+    # Corpo multi-linha opcional: lê até uma linha vazia (ou EOF).
+    if (( ${#body_parts[@]} == 0 )); then
+      echo "Corpo (opcional, multi-linha — Enter numa linha vazia finaliza):"
+      local _line _acc=""
+      while IFS= read -r _line; do
+        [[ -z "$_line" ]] && break
+        if [[ -n "$_acc" ]]; then _acc+=$'\n'"$_line"; else _acc="$_line"; fi
+      done
+      [[ -n "$_acc" ]] && body_parts+=("$_acc")
+    fi
   fi
 
   # ── Montagem da mensagem ──────────────────────────────────────
   local scope_part=""
   [[ -n "$scope" ]] && scope_part="($scope)"
-  local commit_msg="${type}${scope_part}${breaking}: ${description}"
 
-  echo "🚀 Commit: $commit_msg"
+  # Assunto = 1ª linha da descrição; o restante vira corpo. O git só
+  # reconhece corpo depois de uma linha em branco, então assunto e corpo
+  # são passados em '-m' separados.
+  local subject="${description%%$'\n'*}"
+  local body=""
+  [[ "$description" == *$'\n'* ]] && body="${description#*$'\n'}"
+
+  local _part
+  for _part in "${body_parts[@]}"; do
+    [[ -z "$_part" ]] && continue
+    if [[ -n "$body" ]]; then body+=$'\n\n'"$_part"; else body="$_part"; fi
+  done
+
+  # Tira linhas em branco sobrando nas pontas do corpo.
+  while [[ "$body" == $'\n'* ]]; do body="${body#$'\n'}"; done
+  while [[ "$body" == *$'\n' ]]; do body="${body%$'\n'}"; done
+
+  if [[ -z "$subject" ]]; then
+    echo "⚠️  Erro: descrição do commit não fornecida."
+    return 1
+  fi
+
+  local commit_subject="${type}${scope_part}${breaking}: ${subject}"
+  local commit_msg="$commit_subject"
+  [[ -n "$body" ]] && commit_msg+=$'\n\n'"$body"
+
+  echo "🚀 Commit: $commit_subject"
+  if [[ -n "$body" ]]; then
+    echo ""
+    echo "$body"
+  fi
   echo "──────────────────────────────────────"
 
   # ── Fluxo git ─────────────────────────────────────────────────
@@ -224,11 +299,19 @@ gcMsg() {
     git add .
   fi
 
-  # 2. Commit
-  git commit -m "$commit_msg" || {
-    echo "❌ Falha no commit. Verifique os logs acima."
-    return 1
-  }
+  # 2. Commit (assunto e corpo em '-m' separados: o git insere a linha
+  #    em branco entre eles, preservando quebras dentro do corpo)
+  if [[ -n "$body" ]]; then
+    git commit -m "$commit_subject" -m "$body" || {
+      echo "❌ Falha no commit. Verifique os logs acima."
+      return 1
+    }
+  else
+    git commit -m "$commit_subject" || {
+      echo "❌ Falha no commit. Verifique os logs acima."
+      return 1
+    }
+  fi
 
   # 3. Pull (condicional)
   if [[ "$no_pull" == true ]]; then
@@ -252,7 +335,7 @@ gcMsg() {
     }
   fi
 
-  echo "✅ Fluxo concluído: $commit_msg"
+  echo "✅ Fluxo concluído: $commit_subject"
 }
 
 # ── Git flow: feature ────────────────────────────────────────────
