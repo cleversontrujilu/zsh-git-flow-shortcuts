@@ -60,7 +60,7 @@ Used internally by `gfs`, `gff`, `gfrs`, `gfrf`, `gfhs` and `gfhf`.
 Creates a commit following **Conventional Commits** and syncs with the remote.
 
 ```
-gcMsg <type> [scope] "message" [--breaking] [--no-push]
+gcMsg <type> [scope] "message" [-m "body"]... [--breaking] [--no-push] [--no-pull] [--staged-only]
 gcMsg                    # interactive mode (pick the type via menu/fzf)
 ```
 
@@ -76,15 +76,38 @@ gcMsg chore deps "atualiza dependências" --no-push
 gcMsg feat api "migra endpoints para v2" --breaking
 ```
 
+**Multi-line messages.** Two equivalent ways — the subject and the body are
+always separated by a blank line, as git expects:
+
+```
+# repeat -m, like git commit -m
+gcMsg fix auth "corrige refresh de token" \
+  -m "O token expirava antes do refresh agendado." \
+  -m "Closes #42"
+
+# or a single multi-line argument: 1st line = subject, the rest = body
+gcMsg fix auth "corrige refresh de token
+
+O token expirava antes do refresh agendado.
+Closes #42"
+```
+
+In interactive mode, after the description you are prompted for an optional
+body: type as many lines as you want and press Enter on an empty line to finish.
+
 | Argument | Description |
 | --- | --- |
 | `<type>` | `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert` |
 | `[scope]` | Optional. A single word, no spaces (e.g. `auth`, `shipping`). |
-| `"message"` | Imperative, lowercase, no trailing period. |
+| `"message"` | Imperative, lowercase, no trailing period. If it spans several lines, the first one is the subject and the rest becomes the body. |
+| `-m`, `--message` | Adds a paragraph to the commit body. Repeatable. |
 | `--breaking` | Adds `!` before the `:` — e.g. `feat(api)!: ...`. Only for breaking changes to an API/contract/public interface. |
 | `--no-push` | Commits + pulls, but does **not** push. |
+| `--no-pull` | Commits (and pushes, unless `--no-push`), but does **not** pull. |
+| `--staged-only` | Skips `git add .` and commits only what is already staged. Detected automatically when something is already staged. |
 
-Generated message: `type(scope)!: message`.
+Generated message: `type(scope)!: subject`, followed by a blank line and the
+body when there is one.
 
 ---
 
@@ -369,7 +392,7 @@ Usada internamente por `gfs`, `gff`, `gfrs`, `gfrf`, `gfhs` e `gfhf`.
 Cria um commit no padrão **Conventional Commits** e sincroniza com o remoto.
 
 ```
-gcMsg <tipo> [escopo] "mensagem" [--breaking] [--no-push]
+gcMsg <tipo> [escopo] "mensagem" [-m "corpo"]... [--breaking] [--no-push] [--no-pull] [--staged-only]
 gcMsg                    # modo interativo (escolhe tipo por menu/fzf)
 ```
 
@@ -385,15 +408,38 @@ gcMsg chore deps "atualiza dependências" --no-push
 gcMsg feat api "migra endpoints para v2" --breaking
 ```
 
+**Mensagens multi-linha.** Duas formas equivalentes — assunto e corpo sempre
+saem separados por uma linha em branco, como o git espera:
+
+```
+# repetindo -m, igual ao git commit -m
+gcMsg fix auth "corrige refresh de token" \
+  -m "O token expirava antes do refresh agendado." \
+  -m "Closes #42"
+
+# ou um único argumento multi-linha: 1ª linha = assunto, resto = corpo
+gcMsg fix auth "corrige refresh de token
+
+O token expirava antes do refresh agendado.
+Closes #42"
+```
+
+No modo interativo, depois da descrição vem um prompt opcional de corpo: digite
+quantas linhas quiser e dê Enter numa linha vazia para encerrar.
+
 | Argumento | Descrição |
 | --- | --- |
 | `<tipo>` | `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert` |
 | `[escopo]` | Opcional. Uma palavra, sem espaços (ex.: `auth`, `frete`). |
-| `"mensagem"` | Imperativo, minúsculo, sem ponto final. |
+| `"mensagem"` | Imperativo, minúsculo, sem ponto final. Se tiver várias linhas, a primeira vira o assunto e o restante vira o corpo. |
+| `-m`, `--message` | Adiciona um parágrafo ao corpo do commit. Pode repetir. |
 | `--breaking` | Adiciona `!` antes do `:` — ex.: `feat(api)!: ...`. Só para quebra de compatibilidade de API/contrato/interface pública. |
 | `--no-push` | Faz commit + pull, mas **não** faz push. |
+| `--no-pull` | Faz commit (e push, salvo `--no-push`), mas **não** faz pull. |
+| `--staged-only` | Não roda `git add .` — commita só o que já está staged. Detectado automaticamente se já houver algo staged. |
 
-Mensagem gerada: `tipo(escopo)!: mensagem`.
+Mensagem gerada: `tipo(escopo)!: assunto`, seguida de linha em branco e do
+corpo, quando houver.
 
 ---
 
